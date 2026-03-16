@@ -882,56 +882,50 @@ def run(proxy: Optional[str]) -> Optional[str]:
         logger.exception("注册流程异常")
         return None
 
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="OpenAI 自动注册脚本")
-    parser.add_argument(
-        "--proxy", default=None, help="代理地址，如 http://127.0.0.1:7897"
-    )
+    parser.add_argument("--proxy", default=None, help="代理地址")
+    # 增加这个参数，防止 GitHub Action 报错
+    parser.add_argument("--once", action="store_true", help="运行一次")
+    
+    # 即使 YAML 传了这些参数，我们也给个默认值防止崩溃
+    parser.add_argument("--sleep_min", type=int, default=1)
+    parser.add_argument("--sleep_max", type=int, default=2)
 
     args = parser.parse_args()
 
-    sleep_min = max(1, args.sleep_min)
-    sleep_max = max(sleep_min, args.sleep_max)
+    # --- 核心修改：在 GitHub Action 模式下，不需要 while True ---
+    logger.info("开始单次注册流程: proxy={}", args.proxy or "直连")
 
-    count = 0
-    had_failure = False
-    logger.info("Yasal's Seamless OpenAI Auto-Registrar Started for ZJH")
+    try:
+        token_json = run(args.proxy)
 
-    while True:
-        count += 1
-        logger.info(
-            "开始第 {} 次注册流程: proxy={}",
-            count,
-            args.proxy or "直连",
-        )
+        if token_json:
+            try:
+                t_data = json.loads(token_json)
+                fname_email = t_data.get("email", "unknown").replace("@", "_")
+            except Exception:
+                fname_email = "unknown"
 
-        try:
-            token_json = run(args.proxy)
+            # 重点：为了匹配你 YAML 里的上传逻辑，文件必须存在 codex/ 目录下
+            if not os.path.exists("codex"):
+                os.makedirs("codex")
+                
+            file_name = f"codex/token_{fname_email}_{int(time.time())}.json"
 
-            if token_json:
-                try:
-                    t_data = json.loads(token_json)
-                    fname_email = t_data.get("email", "unknown").replace("@", "_")
-                except Exception:
-                    fname_email = "unknown"
+            with open(file_name, "w", encoding="utf-8") as f:
+                f.write(token_json)
 
-                file_name = f"token_{fname_email}_{int(time.time())}.json"
+            logger.info("注册成功: {}", file_name)
+            print(f"[*] Success: {file_name}")
+        else:
+            logger.error("注册失败")
+            exit(1) # 返回错误码，让 YAML 的 || true 接手
 
-                with open(file_name, "w", encoding="utf-8") as f:
-                    f.write(token_json)
-
-                logger.info("注册成功，Token 文件已写入: {}", file_name)
-                print(f"[*] 成功! Token 已保存至: {file_name}")
-            else:
-                had_failure = True
-                logger.error("本次注册失败")
-
-        except Exception:
-            had_failure = True
-            logger.exception("main 捕获到未处理异常")
-
-
+    except Exception:
+        logger.exception("运行异常")
+        exit(1)
 
 if __name__ == "__main__":
     main()
+
