@@ -2,7 +2,7 @@ name: Daily Task Job
 
 on:
   schedule:
-    - cron: '*/40 * * * *' #每40分钟跑一次
+    - cron: '*/40 * * * *' #每40分钟跑一次的
   workflow_dispatch:
     inputs:
       count:
