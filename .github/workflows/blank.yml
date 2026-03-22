@@ -35,7 +35,7 @@ jobs:
           mkdir -p codex
           for i in $(seq 1 $REG_COUNT); do
             echo "========== 第 $i/$REG_COUNT 次注册 =========="
-            python oar.py --once || true
+            python oar_v2.py --once || true
             if [ "$i" -lt "$REG_COUNT" ]; then
               SLEEP=$((RANDOM % 20 + 10))
               echo "[*] 等待 ${SLEEP}s..."
